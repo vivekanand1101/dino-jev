@@ -12,7 +12,7 @@ test('hosted browser request uses same-origin relay; server generates legal plan
   return handleApi(new Request(origin+'/api/plan',{...options,headers:{...options.headers,origin}}),async(upstream, init)=>{
    assert.equal(upstream,'https://api.typesafe.ai/v1/systemone');
    assert.equal(init.headers.Authorization,'Bearer test-key');
-   assert.equal(init.redirect,'error');
+   assert.equal(init.redirect,'manual');
    const body=JSON.parse(init.body);assert.equal(body.model,'jev-latest');
    return Response.json({answers:{action:{type:'choice',choice:'run'}}});
   });
@@ -48,4 +48,19 @@ test('Worker rate limits by Cloudflare client IP before accepting bodies or call
  assert.equal(response.status,429);assert.equal(counterKey,'192.0.2.1');assert.equal(response.headers.get('Retry-After'),'60');
  const unconfigured=await worker.fetch(request(),{});assert.equal(unconfigured.status,503);
  const allowed=await worker.fetch(new Request(origin+'/api/plan',{method:'POST',headers:{'CF-Connecting-IP':'192.0.2.1'}}),{PLAN_RATE_LIMITER:{limit:async()=>({success:true})}});assert.equal(allowed.status,403);
+});
+test('Worker transport works when the runtime rejects redirect:error and never follows redirects', async()=>{
+ const workerFetch=async(url,options)=>{
+  if(options.redirect==='error') throw new TypeError('Unsupported redirect mode: error');
+  assert.equal(options.redirect,'manual');
+  return new Response('invalid key',{status:401});
+ };
+ const response=await handleApi(request(),workerFetch);
+ assert.equal(response.status,401);
+ const redirect=await handleApi(request(),async(url,options)=>{
+  assert.equal(options.redirect,'manual');
+  return new Response('',{status:302,headers:{Location:'https://other.example'}});
+ });
+ assert.equal(redirect.status,502);
+ assert.equal((await redirect.json()).error,'Jev returned an unexpected redirect.');
 });

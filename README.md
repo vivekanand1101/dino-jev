@@ -1,5 +1,9 @@
 # Dino × Jev
 
+Play: https://dino-jev.vivekanand1101.workers.dev/
+
+Source: https://github.com/vivekanand1101/dino-jev (private).
+
 The original Chromium dinosaur runner, with Jev selecting timed movement plans.
 
 ## Run locally
