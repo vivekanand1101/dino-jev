@@ -1,6 +1,8 @@
 # Dino × Jev
 
-Play: https://dino-jev.vivekanand1101.workers.dev/
+Play: https://anandvivek.in/slops/dino/
+
+Standalone game: https://dino-jev.vivekanand1101.workers.dev/
 
 Source: https://github.com/vivekanand1101/dino-jev (private).
 
@@ -46,3 +48,5 @@ npm test
 Tests mock Jev and cover gameplay, credentials, direct API access, relay origin/body/state validation, error handling, and the Worker entrypoint. No live key is required for tests.
 
 The Chromium runner and sprites are pinned to Chromium 90.0.4430.212. BSD licensing is preserved in `public/vendor/LICENSE`. Source: https://github.com/chromium/chromium/tree/90.0.4430.212/components/neterror/resources
+
+The website repository serves a small page at `/slops/dino/` that embeds this game. The game permits embedding only by `https://anandvivek.in`; player credentials stay on the dedicated game origin. Website updates and game updates deploy independently.
