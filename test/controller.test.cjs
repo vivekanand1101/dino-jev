@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {readFileSync}=require('node:fs');
 const vm=require('node:vm');
-function setup(){
+function setup(hostedRelay=null){
  const elements=new Map(); const get=id=>{if(!elements.has(id))elements.set(id,{textContent:'',disabled:false});return elements.get(id)};
  const events=[],listeners={},requests=[];
  class Runner {
@@ -10,7 +10,7 @@ function setup(){
   startGame(){} play(){this.playing=true;this.paused=false} restart(){this.crashed=false;this.play()}
   onKeyDown(e){events.push(['down',e.keyCode])} onKeyUp(e){events.push(['up',e.keyCode])}
  }
- const context=vm.createContext({fetch:async()=>({ok:true,json:async()=>({relay:true})}),Runner,document:{getElementById:get},window:{addEventListener:(name,fn)=>listeners[name]=fn},mountKeySettings:()=>({getKey:()=> 'test-key',getSignal:()=>undefined}),requestRunnerPlan:async(state)=>new Promise(resolve=>requests.push({resolve,body:{state}})),performance,AbortSignal,setTimeout,clearTimeout,setInterval:()=>{}
+ const context=vm.createContext({fetch:async()=>({ok:true,json:async()=>({relay:true})}),Runner,document:{getElementById:get,querySelector:()=>hostedRelay?{content:hostedRelay}:null},window:{addEventListener:(name,fn)=>listeners[name]=fn},mountKeySettings:()=>({getKey:()=> 'test-key',getSignal:()=>undefined}),requestRunnerPlan:async(state,key,signal,fetcher,relay)=>new Promise(resolve=>requests.push({resolve,body:{state},relay})),performance,AbortSignal,setTimeout,clearTimeout,setInterval:()=>{}
  });
  vm.runInContext(readFileSync('public/controller.js','utf8').replace(/^import .*;$/gm,''),context);
  return{context,get,events,requests,listeners};
@@ -37,4 +37,10 @@ test('late Jev reply is ignored after human takeover',async()=>{
  const s=setup();await s.listeners.load();vm.runInContext('motion.set(runner.horizon.obstacles[0],{span:200,speed:360})',s.context);s.get('start').onclick();s.get('stop').onclick();
  s.requests[0].resolve({action:'press_space'});await flush();
  assert.deepEqual(s.events,[]);assert.equal(s.requests.length,1);
+});
+
+test('native website gameplay uses its configured Jev relay instead of a missing local API',async()=>{
+ const endpoint='https://dino-jev.vivekanand1101.workers.dev/api/plan';
+ const s=setup(endpoint);await s.listeners.load();vm.runInContext('motion.set(runner.horizon.obstacles[0],{span:200,speed:360})',s.context);s.get('start').onclick();
+ assert.equal(s.requests[0].relay,endpoint);s.get('stop').onclick();
 });

@@ -9,7 +9,7 @@ export function mountKeySettings({relay = false, onChange = () => {}, onOpen = (
     <dialog id="key-dialog" class="key-dialog" aria-labelledby="key-title">
       <form id="key-form">
         <h2 id="key-title">Play with Jev</h2>
-        <p>${relay ? 'Your key is sent through this game’s host to Jev for each decision. It is never stored on the server.' : 'Your key goes directly from this browser to Jev. No game backend.'}</p>
+        <p>${relay ? 'Your key is sent through the game’s Jev relay for each decision. It is never stored on the server.' : 'Your key goes directly from this browser to Jev. No game backend.'}</p>
         <label class="key-label" for="jev-key">Jev API key</label>
         <div class="key-input-row"><input id="jev-key" name="jev-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="1024" placeholder="Paste your API key" aria-describedby="key-storage-note"><button type="button" id="key-show">Show</button></div>
         <label class="key-remember"><input type="checkbox" id="key-remember"> Remember on this device</label>

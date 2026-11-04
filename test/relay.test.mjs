@@ -64,3 +64,17 @@ test('Worker transport works when the runtime rejects redirect:error and never f
  assert.equal(redirect.status,502);
  assert.equal((await redirect.json()).error,'Jev returned an unexpected redirect.');
 });
+test('website can preflight and use the hosted relay without embedding another origin', async()=>{
+ const website='https://anandvivek.in';
+ const preflight=await worker.fetch(new Request(origin+'/api/plan',{method:'OPTIONS',headers:{Origin:website,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'authorization,content-type'}}),{});
+ assert.equal(preflight.status,204);assert.equal(preflight.headers.get('Access-Control-Allow-Origin'),website);
+ const response=await worker.fetch(new Request(origin+'/api/plan',{method:'POST',headers:{Origin:website,'CF-Connecting-IP':'192.0.2.1','Content-Type':'application/json'},body:'{}'}),{PLAN_RATE_LIMITER:{limit:async()=>({success:true})}});
+ assert.equal(response.status,401);assert.equal(response.headers.get('Access-Control-Allow-Origin'),website);
+ const foreign=await worker.fetch(new Request(origin+'/api/plan',{method:'OPTIONS',headers:{Origin:'https://other.example','Access-Control-Request-Method':'POST'}}),{});
+ assert.equal(foreign.status,403);assert.equal(foreign.headers.has('Access-Control-Allow-Origin'),false);
+});
+test('native website client uses the hosted relay URL',async()=>{
+ const endpoint='https://dino-jev.vivekanand1101.workers.dev/api/plan';
+ const result=await requestRunnerPlan(state,'test-key',undefined,async(url)=>{assert.equal(url,endpoint);return Response.json({planId:'run'});},endpoint);
+ assert.equal(result.planId,'run');
+});

@@ -11,3 +11,5 @@ On 4 November 2026, live verification confirmed Jev rejects the local browser or
 Deployed on 4 November 2026 to `https://dino-jev.vivekanand1101.workers.dev/`, after confirming Workers Free was the current account plan. Deployment version: `d0190e7e-462a-4bd1-bf96-c11f08e79192`. Static assets and the game-only relay run on the same host, with no provider secret configured on the Worker.
 
 The first live Worker check caught Cloudflare’s lack of support for `redirect: error`. The Jev transport now uses manual redirect handling and explicitly rejects redirect responses; a regression test covers both runtime compatibility and credential-safe redirect rejection.
+
+A Chrome screenshot later showed the embedded workers.dev frame refused to connect, despite successful sidebar rendering and current embedding headers. Replaced the iframe with native static game assets under `/slops/dino/`. The fixed Worker endpoint now permits CORS from anandvivek.in only. This removes cross-site frame loading from the public game path rather than relying on browser-specific frame behavior. `scripts/export-website.mjs` regenerates website assets without credentials.

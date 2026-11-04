@@ -2,11 +2,11 @@ import { buildPlanDecision } from './decision.js';
 import { validateRunnerState } from './state.js';
 import { JevError, requestJev } from './jev.js';
 /** Ask Jev to select a legal plan, directly or through the game-only relay. */
-export async function requestRunnerPlan(input: unknown, key: string, signal?: AbortSignal, fetcher: typeof fetch = fetch, relay = false) {
+export async function requestRunnerPlan(input: unknown, key: string, signal?: AbortSignal, fetcher: typeof fetch = fetch, relay: boolean | string = false) {
   if (relay) {
     if (!key) throw new JevError('Add your Jev API key in Key settings.');
     let response: Response;
-    try { response = await fetcher('./api/plan', {
+    try { response = await fetcher(typeof relay === 'string' ? relay : './api/plan', {
       method: 'POST', credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer',
       headers: {Authorization: `Bearer ${key}`, 'Content-Type': 'application/json'},
       body: JSON.stringify(input), signal: AbortSignal.any([AbortSignal.timeout(5000), ...(signal ? [signal] : [])])
