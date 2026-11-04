@@ -10,11 +10,9 @@ function setup(){
   startGame(){} play(){this.playing=true;this.paused=false} restart(){this.crashed=false;this.play()}
   onKeyDown(e){events.push(['down',e.keyCode])} onKeyUp(e){events.push(['up',e.keyCode])}
  }
- const context=vm.createContext({Runner,document:{getElementById:get},window:{addEventListener:(name,fn)=>listeners[name]=fn},performance,AbortSignal,setTimeout,clearTimeout,setInterval:()=>{},fetch:async(url,options)=>{
-  if(url==='/health')return{json:async()=>({configured:true})};
-  return new Promise(resolve=>requests.push({resolve,body:JSON.parse(options.body)}));
- }});
- vm.runInContext(readFileSync('public/controller.js','utf8'),context);
+ const context=vm.createContext({fetch:async()=>({ok:true,json:async()=>({relay:true})}),Runner,document:{getElementById:get},window:{addEventListener:(name,fn)=>listeners[name]=fn},mountKeySettings:()=>({getKey:()=> 'test-key',getSignal:()=>undefined}),requestRunnerPlan:async(state)=>new Promise(resolve=>requests.push({resolve,body:{state}})),performance,AbortSignal,setTimeout,clearTimeout,setInterval:()=>{}
+ });
+ vm.runInContext(readFileSync('public/controller.js','utf8').replace(/^import .*;$/gm,''),context);
  return{context,get,events,requests,listeners};
 }
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
@@ -23,20 +21,20 @@ test('game continues while Jev decides; keys stay held until release',async()=>{
  assert.equal(vm.runInContext('runner.playing',s.context),true);
  assert.equal(vm.runInContext('runner.paused',s.context),false);
  assert.equal(s.requests.length,1);
- s.requests[0].resolve({ok:true,json:async()=>({action:'press_space'})});await flush();
+ s.requests[0].resolve({action:'press_space'});await flush();
  assert.deepEqual(s.events,[['down',32]]);assert.equal(s.requests.length,2);
  assert.equal(s.requests[1].body.state.dinosaur.spaceHeld,true);
- s.requests[1].resolve({ok:true,json:async()=>({action:'hold_space'})});await flush();
+ s.requests[1].resolve({action:'hold_space'});await flush();
  assert.deepEqual(s.events,[['down',32]]);
- s.requests[2].resolve({ok:true,json:async()=>({action:'release_space'})});await flush();
+ s.requests[2].resolve({action:'release_space'});await flush();
  assert.deepEqual(s.events,[['down',32],['up',32]]);
- s.requests[3].resolve({ok:true,json:async()=>({action:'press_space'})});await flush();
- s.requests[4].resolve({ok:true,json:async()=>({action:'tap_space'})});await flush();
+ s.requests[3].resolve({action:'press_space'});await flush();
+ s.requests[4].resolve({action:'tap_space'});await flush();
  assert.deepEqual(s.events.slice(-3),[['down',32],['up',32],['down',32]]);
  s.get('stop').onclick();assert.equal(vm.runInContext('runner.paused',s.context),false);
 });
 test('late Jev reply is ignored after human takeover',async()=>{
  const s=setup();await s.listeners.load();vm.runInContext('motion.set(runner.horizon.obstacles[0],{span:200,speed:360})',s.context);s.get('start').onclick();s.get('stop').onclick();
- s.requests[0].resolve({ok:true,json:async()=>({action:'press_space'})});await flush();
+ s.requests[0].resolve({action:'press_space'});await flush();
  assert.deepEqual(s.events,[]);assert.equal(s.requests.length,1);
 });

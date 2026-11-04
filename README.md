@@ -1,29 +1,44 @@
 # Dino × Jev
 
-The Chromium dinosaur runner with optional Jev AI control. Runs independently from tic-tac-toe.
+The original Chromium dinosaur runner, with Jev selecting timed movement plans.
 
-## Run
+## Run locally
 
-Use Node.js 24 LTS (see `.nvmrc`; Node 22.9+ also works).
+Use Node.js 24 LTS (or 22.9+).
 
 ```sh
 npm ci --ignore-scripts
-npm run build
-npm start
+npm run dev
 ```
 
-Open http://127.0.0.1:3038. Press Space to start/jump and Down to duck. Manual play works without credentials. `npm run dev` starts the development watcher; `npm test` builds and runs the tests.
+Open http://127.0.0.1:3038. Supply your own Jev key in the browser, then choose **Let Jev play**. **Play manually** works without a key: Space jumps and ArrowDown ducks. The key stays in this tab by default; **Remember on this device** persists it in your browser. **Key settings** replaces or clears it. Never put a real key into source files or the static build.
 
-For AI play, copy `.env.example` to `.env`, set `TYPESAFE_API_KEY`, and restart. `.env` loads automatically. `JEV_API_KEY` is an alias, `JEV_MODEL` defaults to `jev-latest`, and `PORT` defaults to `3038`. Click **Let Jev play**; **Take over** releases its keys. Jev calls use your provider account and may incur costs. No key is included in this repository.
+The local preview and deployed Worker expose the same game-only `/api/plan` relay. Browsers send the current runner state and their personal key to their own game host. The relay validates the state, generates legal plans, and asks the fixed Jev endpoint to select one. It keeps no keys, sends no cookies, rejects redirects and cross-origin browser calls, limits request bodies, and omits upstream error bodies. No shared owner key, database, paid hosting service, or environment file is needed. The deployed API has an approximate 120 requests/minute limit per client IP per Cloudflare location; public traffic can still exhaust the Free quota.
 
-## How it works
+Direct browser requests to Jev failed preflight on 4 November 2026 with `Disallowed CORS origin`. The relay resolves this using an ordinary server-to-server API call. Plain static hosting remains usable for manual play; AI play without the relay requires Jev to allow that site's origin.
 
-The browser sends the runner's position, jump state, held keys, and up to three obstacles to `POST /api/action`. Local logic builds candidate timed keyboard plans; Jev chooses a plan, and the controller executes it while gameplay continues at normal speed. Selected policies may be reused for matching obstacles. Keep the game tab focused: Chromium pauses on lost focus.
+## Deploy on Cloudflare Workers Free
 
-`GET /health` reports `{configured, model}`. Invalid state returns 400, wrong content type 415, oversized JSON 413, missing key 503, rate/concurrency limit 429, and upstream failure 502. Requests are limited to 300 per minute and two in flight per process. Jev is tested with mocked responses; verification during recovery made no paid API calls.
+Use a Cloudflare account on the **Free** plan. The included `wrangler.jsonc` deploys the static game and relay together at a free `workers.dev` address. No custom domain is required.
 
-## Source and verification
+```sh
+npm ci --ignore-scripts
+npx wrangler@4 login
+npx wrangler@4 deploy
+```
 
-The original Chromium runner and sprites are pinned to Chromium 90.0.4430.212. Its BSD license is preserved in `public/vendor/LICENSE`. Original source: https://github.com/chromium/chromium/tree/90.0.4430.212/components/neterror/resources
+Wrangler runs the build automatically. Do not upload `.env` files or embed your key. Each visitor enters their own Jev key. The browser sends that key through the host running this Worker to Jev; deploy only to a host you trust.
 
-Tests cover the controller, planner, state validation, upstream handling, browser protections, and inference limits. See `SECURITY.md` for local security assumptions and `RECOVERY.md` for recovery details.
+Cloudflare's documented Free allocation is 100,000 Worker requests/day and 10 ms CPU/request; static asset requests are free and unlimited. Stay on Free to avoid hosting charges; quota exhaustion limits service. Jev inference usage is separate and follows each player's existing account and pricing. This project cannot guarantee free model inference.
+
+Sources: https://developers.cloudflare.com/workers/platform/pricing/ and https://developers.cloudflare.com/workers/static-assets/
+
+## Verify
+
+```sh
+npm test
+```
+
+Tests mock Jev and cover gameplay, credentials, direct API access, relay origin/body/state validation, error handling, and the Worker entrypoint. No live key is required for tests.
+
+The Chromium runner and sprites are pinned to Chromium 90.0.4430.212. BSD licensing is preserved in `public/vendor/LICENSE`. Source: https://github.com/chromium/chromium/tree/90.0.4430.212/components/neterror/resources

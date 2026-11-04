@@ -1,3 +1,6 @@
+import { requestRunnerPlan } from './modules/runner-client.js';
+import { mountKeySettings } from './key-settings.js';
+let keys, relay = false;
 const audit=[];function record(kind,details){audit.push({kind,time:Math.round(performance.now()),...details});if(audit.length>80)audit.shift();$('trace').textContent=JSON.stringify(audit);}
 const $ = id => document.getElementById(id);
 let runner, enabled=false, generation=0, space=false, down=false, previousLatency=250, count=0,latencies=[],failures=0,planTimers=[],planVersion=0,cleared=0,obstacleIds=new WeakMap(),nextObstacleId=1,plannedIds=new Set(),seenObstacles=new Map(),motion=new WeakMap(),policyCache=new Map(),cachedUses=0;
@@ -47,26 +50,25 @@ function schedulePlan(plan,observedAt,token,cached=false){
 
  return true;
 }
-function relinquish(message){cancelPlan();enabled=false;generation++;apply('release_all');$('start').disabled=false;$('stop').disabled=true;$('status').textContent=message;}
+function relinquish(message){cancelPlan();enabled=false;generation++;apply('release_all');$('start').disabled=!keys?.getKey();$('stop').disabled=true;$('status').textContent=message;}
 async function decide(token){
   while(enabled&&token===generation&&!runner.crashed){
     if(runner.paused){relinquish('Chrome paused the game because the tab lost focus. Return here and start another run.');return;}
     if(snapshot().obstacles.length===0){await new Promise(resolve=>setTimeout(resolve,40));continue;}
     const started=performance.now();
     try{
-      const response=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:snapshot()}),signal:AbortSignal.timeout(4000)});
-      const data=await response.json();
+      const data=await requestRunnerPlan(snapshot(),keys.getKey(),keys.getSignal(),fetch,relay);
       if(!enabled||token!==generation||runner.crashed)return;
-      if(!response.ok){if(!data.retryable)throw Error(data.error||'Jev unavailable');failures++;$('status').textContent=`${data.error} Retrying with fresh state; game keeps running.`;await new Promise(resolve=>setTimeout(resolve,Math.min(800,100*failures)));continue;}
       previousLatency=Math.round(performance.now()-started);latencies.push(previousLatency);if(latencies.length>12)latencies.shift();failures=0;
       if(!data.plan){apply(data.action);}else if(!schedulePlan(data.plan,started,token)){$('status').textContent='Plan arrived too late. Requesting fresh state.';continue;}
       $('status').textContent='Jev is planning timed moves. The game keeps running.';count++;
       $('action').textContent=data.planId||data.action.replaceAll('_',' ');$('latency').textContent=previousLatency+' ms';$('count').textContent=count;
 
-    }catch(error){if(token!==generation||!enabled)return;if(error.name==='TimeoutError'||error.name==='TypeError'){failures++;$('status').textContent='Connection interrupted. Retrying with fresh state; game keeps running.';await new Promise(resolve=>setTimeout(resolve,Math.min(800,100*failures)));continue;}relinquish(error.message+' You can continue manually with Space and ArrowDown.');return;}
+    }catch(error){if(token!==generation||!enabled)return;if(error.retryable&&failures<3){failures++;$('status').textContent='Jev is temporarily unavailable. Retrying with fresh state.';await new Promise(resolve=>setTimeout(resolve,Math.min(800,100*failures)));continue;}relinquish(error.message+' You can continue manually with Space and ArrowDown.');return;}
   }
 }
 $('start').onclick=()=>{
+  if(!keys?.getKey()){keys?.open();return;}
   cancelPlan();plannedIds.clear();seenObstacles.clear();cleared=0;cachedUses=0;$('cached').textContent='0';generation++;if(enabled)apply('release_all');enabled=true;count=0;failures=0;space=false;down=false;previousLatency=250;
   $('cleared').textContent='0';$('count').textContent='0';$('action').textContent='—';$('latency').textContent='—';$('start').disabled=true;$('stop').disabled=false;$('status').textContent='Jev is playing. The game continues during every decision.';
   if(runner.crashed)runner.restart();
@@ -77,12 +79,15 @@ $('start').onclick=()=>{
 $('stop').onclick=()=>relinquish('Your turn. Space to jump, ArrowDown to duck. The game keeps running.');
 // Cancel an in-flight decision on collision; never let a late answer restart the game.
 setInterval(()=>{if(runner&&enabled){for(const o of runner.horizon.obstacles){const now=performance.now(),last=motion.get(o);const samples=last?.samples||[];samples.push({x:o.xPos,time:now});while(samples.length>2&&now-samples[0].time>280)samples.shift();const first=samples[0],span=now-first.time;motion.set(o,{samples,span,speed:span>0?(first.x-o.xPos)*1000/span+8:runner.currentSpeed*54});if(!obstacleIds.has(o))obstacleIds.set(o,nextObstacleId++);if(!seenObstacles.has(o))seenObstacles.set(o,{id:obstacleIds.get(o),passed:false});}for(const o of runner.horizon.obstacles){const id=obstacleIds.get(o),policy=policyCache.get(policyKey(o));if(plannedIds.has(id)||!policy)continue;const remaining=(o.xPos-runner.tRex.xPos-runner.tRex.config.WIDTH)/(motion.get(o)?.speed||runner.currentSpeed*60)*1000;if(remaining<=policy.leadMs+90){const events=policy.action==='pass'?[]:[{atMs:0,action:policy.action,obstacleId:id,leadMs:policy.leadMs},{atMs:280,action:'release_space'}];if(policy.action==='duck')events.pop();schedulePlan({obstacleIds:[id],events},performance.now(),generation,true);cachedUses++;$('cached').textContent=cachedUses;record('cached_policy',{id,policy});}}for(const [o,record] of seenObstacles){if(!record.passed&&!runner.crashed&&o.xPos+o.width<=runner.tRex.xPos){record.passed=true;cleared++;$('cleared').textContent=cleared;}}}if(enabled&&runner?.crashed){record('crash',{state:snapshot()});relinquish('Game over. Jev crashed. Start another run or play manually.');}},50);
-window.addEventListener('keydown',e=>{if(enabled&&(e.code==='Space'||e.code==='ArrowDown')){e.preventDefault();e.stopImmediatePropagation();}},true);
-window.addEventListener('keyup',e=>{if(enabled&&(e.code==='Space'||e.code==='ArrowDown')){e.preventDefault();e.stopImmediatePropagation();}},true);
+window.addEventListener('keydown',e=>{if(e.target?.closest?.('#key-dialog'))return;if(enabled&&(e.code==='Space'||e.code==='ArrowDown')){e.preventDefault();e.stopImmediatePropagation();}},true);
+window.addEventListener('keyup',e=>{if(e.target?.closest?.('#key-dialog'))return;if(enabled&&(e.code==='Space'||e.code==='ArrowDown')){e.preventDefault();e.stopImmediatePropagation();}},true);
 window.addEventListener('load',async()=>{
+ try { const response = await fetch('./api/config', {cache:'no-store'}); relay = response.ok && (await response.json()).relay === true; } catch {}
  runner=new Runner('.interstitial-wrapper');
  // Start running without inserting an automatic jump. Jev chooses the first Space press.
  const originalStart=$('start').onclick;
  $('start').onclick=()=>{if(!runner.activated){runner.activated=true;runner.startGame();runner.play();}originalStart();};
- try{const response=await fetch('/health');const data=await response.json();$('start').disabled=!data.configured;$('status').textContent=data.configured?'Ready. Let Jev play, or press Space to play yourself.':'Jev key missing. You can play manually with Space.';}catch{$('status').textContent='Service unavailable.';}
+ const updateKey=()=>{policyCache.clear();plannedIds.clear();$('start').disabled=!keys.getKey();$('status').textContent=keys.getKey()?'Key saved. Let Jev play, or press Space to play yourself.':'No Jev key saved. Play manually with Space.';};
+ keys=mountKeySettings({relay,offlineLabel:'Play manually',onOpen:()=>{if(enabled)relinquish('AI stopped while editing the key.');},onChange:()=>{if(enabled)relinquish('Key changed. Start a new Jev run when ready.');updateKey();}});
+ updateKey();
 });

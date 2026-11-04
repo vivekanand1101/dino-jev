@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {buildPlanDecision} from '../dist/decision.js';
+import {buildPlanDecision} from '../dist/modules/decision.js';
 const state=()=>({speedPxPerSecond:360,previousLatencyMs:350,expectedLatencyMs:350,dinosaur:{x:50,y:93,width:44,height:47,groundY:93,jumpVelocity:0,jumping:false,ducking:false,spaceHeld:false,downHeld:false},obstacles:[{type:'CACTUS_SMALL',x:234,y:105,width:17,height:35,distance:140}]});
 test('latency projection gives Jev the gap when its decision arrives',()=>{
  const result=buildPlanDecision(state());
