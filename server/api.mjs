@@ -1,4 +1,5 @@
 import {requestRunnerPlan} from '../dist/modules/runner-client.js';
+import {WEBSITE_ORIGINS} from './origins.mjs';
 
 // Shared by the loopback preview and Cloudflare Worker. Never stores keys.
 export async function handleApi(request, fetcher = fetch) {
@@ -9,7 +10,7 @@ export async function handleApi(request, fetcher = fetch) {
   if (url.pathname !== '/api/plan') return new Response('Not found', {status: 404});
   const fail = (error, status) => Response.json({error}, {status, headers: {'Cache-Control': 'no-store'}});
   if (request.method !== 'POST') return fail('Method not allowed.', 405);
-  if (![url.origin, 'https://anandvivek.in'].includes(request.headers.get('origin'))) return fail('Origin not allowed.', 403);
+  if (request.headers.get('origin') !== url.origin && !WEBSITE_ORIGINS.has(request.headers.get('origin'))) return fail('Origin not allowed.', 403);
   if (request.headers.get('content-type')?.split(';')[0] !== 'application/json') return fail('Expected JSON.', 415);
   const key = request.headers.get('authorization')?.match(/^Bearer (\S{1,1024})$/)?.[1];
   if (!key) return fail('Add your Jev API key in Key settings.', 401);

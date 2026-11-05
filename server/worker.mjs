@@ -1,9 +1,9 @@
 import {handleApi} from './api.mjs';
-const WEBSITE = 'https://anandvivek.in';
+import {WEBSITE_ORIGINS} from './origins.mjs';
 function cors(response, origin) {
-  if (origin !== WEBSITE) return response;
+  if (!WEBSITE_ORIGINS.has(origin)) return response;
   const headers = new Headers(response.headers);
-  headers.set('Access-Control-Allow-Origin', WEBSITE);
+  headers.set('Access-Control-Allow-Origin', origin);
   headers.set('Vary', 'Origin');
   return new Response(response.body, {status:response.status,headers});
 }
@@ -13,7 +13,7 @@ export default {
     if (url.pathname === '/api/plan') {
       if (request.method === 'OPTIONS') {
         const requestedHeaders = (request.headers.get('Access-Control-Request-Headers') || '').toLowerCase().split(',').map(h=>h.trim()).filter(Boolean);
-        if (origin !== WEBSITE || request.headers.get('Access-Control-Request-Method') !== 'POST' || requestedHeaders.some(h=>!['authorization','content-type'].includes(h))) return new Response('Origin not allowed.', {status:403});
+        if (!WEBSITE_ORIGINS.has(origin) || request.headers.get('Access-Control-Request-Method') !== 'POST' || requestedHeaders.some(h=>!['authorization','content-type'].includes(h))) return new Response('Origin not allowed.', {status:403});
         return cors(new Response(null, {status:204,headers:{'Access-Control-Allow-Methods':'POST','Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Max-Age':'600'}}), origin);
       }
       // Cloudflare supplies this address; never trust client-supplied X-Forwarded-For.

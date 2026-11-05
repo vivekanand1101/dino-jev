@@ -78,3 +78,18 @@ test('native website client uses the hosted relay URL',async()=>{
  const result=await requestRunnerPlan(state,'test-key',undefined,async(url)=>{assert.equal(url,endpoint);return Response.json({planId:'run'});},endpoint);
  assert.equal(result.planId,'run');
 });
+test('both real website hostnames can preflight and send game requests; unrelated origins stay blocked',async()=>{
+ for(const website of ['https://anandvivek.in','https://www.anandvivek.in']){
+  const preflight=await worker.fetch(new Request(origin+'/api/plan',{method:'OPTIONS',headers:{Origin:website,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'authorization,content-type'}}),{});
+  assert.equal(preflight.status,204,website);assert.equal(preflight.headers.get('Access-Control-Allow-Origin'),website);
+  const response=await worker.fetch(new Request(origin+'/api/plan',{method:'POST',headers:{Origin:website,'CF-Connecting-IP':'192.0.2.1','Content-Type':'application/json'},body:'{}'}),{PLAN_RATE_LIMITER:{limit:async()=>({success:true})}});
+  assert.equal(response.status,401,website);assert.equal(response.headers.get('Access-Control-Allow-Origin'),website);
+  assert.equal(response.headers.get('Vary'),'Origin');
+  const plan=await handleApi(request(state,{origin:website}),async()=>Response.json({answers:{action:{type:'choice',choice:'run'}}}));
+  assert.equal(plan.status,200,website);
+ }
+ for(const website of ['https://evil.example','https://anandvivek.in.evil.example','https://www.anandvivek.in.evil.example','http://www.anandvivek.in','null']){
+  const response=await worker.fetch(new Request(origin+'/api/plan',{method:'OPTIONS',headers:{Origin:website,'Access-Control-Request-Method':'POST'}}),{});
+  assert.equal(response.status,403,website);assert.equal(response.headers.has('Access-Control-Allow-Origin'),false);
+ }
+});
