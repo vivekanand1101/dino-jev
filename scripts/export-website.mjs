@@ -26,13 +26,15 @@ const controller=(await readFile(join(target,'controller.js'),'utf8')).replace("
 await writeFile(join(target,'controller.js'),controller);
 const version=createHash('sha256').update(controller).digest('hex').slice(0,12);
 html=html.replace('./controller.js', './controller.js?v='+version);
-html=html.replace('</head>','<link rel="stylesheet" href="./site-layout.css"></head>');
-await writeFile(join(target,'index.html'),html);
-await writeFile(join(target,'site-layout.css'),`.site-navigation{--text:#1c1c1c;--muted:#62625e;font:18px/1.65 var(--serif)}
+const layout=`.site-navigation{--text:#1c1c1c;--muted:#62625e;font:18px/1.65 var(--serif)}
 .site-navigation .site-header{margin-bottom:0}
-.key-settings{max-width:760px;margin:24px auto;padding:0 24px;text-align:right}\n.key-summary{margin-left:auto}\nmain{max-width:760px;margin:0 auto 80px}
+.game-controls{display:flex;align-items:flex-start;justify-content:flex-end;gap:12px;flex-wrap:wrap}\n.play-controls{display:flex;gap:4px}\nmain>header button{min-height:40px}\n.key-summary{margin-left:auto}\nmain{max-width:760px;margin:0 auto 80px}
 @media(max-width:500px){main>header{gap:16px;flex-wrap:wrap}.metrics{flex-wrap:wrap}}
-`);
+`;
+await writeFile(join(target,'site-layout.css'),layout);
+const layoutVersion=createHash('sha256').update(layout).digest('hex').slice(0,12);
+html=html.replace('</head>',`<link rel="stylesheet" href="./site-layout.css?v=${layoutVersion}"></head>`);
+await writeFile(join(target,'index.html'),html);
 await rm(join(target,'site-link.css'),{force:true});
 for(const name of ['key-settings.js','key-settings.css','modules/credentials.js'])await rm(join(target,name),{force:true});
 console.log('Exported credential-free game to '+target);
