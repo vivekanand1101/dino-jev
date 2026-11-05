@@ -9,7 +9,12 @@ function cors(response, origin) {
 }
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url), origin = request.headers.get('Origin');
+    let url = new URL(request.url);
+    if (url.pathname === '/slops/dino/api/plan') {
+      url.pathname = '/api/plan';
+      request = new Request(url, request);
+    }
+    const origin = request.headers.get('Origin');
     if (url.pathname === '/api/plan') {
       if (request.method === 'OPTIONS') {
         const requestedHeaders = (request.headers.get('Access-Control-Request-Headers') || '').toLowerCase().split(',').map(h=>h.trim()).filter(Boolean);

@@ -2,12 +2,13 @@
   "name": "dino-jev",
   "main": "server/worker.mjs",
   "compatibility_date": "2026-11-04",
-  "workers_dev": true,
+  "workers_dev": false,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "run_worker_first": [
-      "/api/*"
+      "/api/*",
+      "/slops/dino/api/*"
     ]
   },
   "build": {
@@ -24,6 +25,17 @@
         "limit": 120,
         "period": 60
       }
+    }
+  ],
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "anandvivek.in/slops/dino/api/*",
+      "zone_id": "fa99c5c83aa1ef358ce0c3e57a233a4c"
+    },
+    {
+      "pattern": "www.anandvivek.in/slops/dino/api/*",
+      "zone_id": "fa99c5c83aa1ef358ce0c3e57a233a4c"
     }
   ]
 }

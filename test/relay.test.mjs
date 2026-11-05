@@ -93,3 +93,15 @@ test('both real website hostnames can preflight and send game requests; unrelate
   assert.equal(response.status,403,website);assert.equal(response.headers.has('Access-Control-Allow-Origin'),false);
  }
 });
+test('same-origin website API preserves clearance cookies and maps to the game handler',async()=>{
+ const url='https://www.anandvivek.in/slops/dino/api/plan';
+ const result=await requestRunnerPlan(state,'test-key',undefined,async(endpoint,options)=>{
+  assert.equal(endpoint,'/slops/dino/api/plan');assert.equal(options.credentials,'same-origin');
+  const response=await worker.fetch(new Request(url,{...options,headers:{...options.headers,Origin:'https://www.anandvivek.in','CF-Connecting-IP':'192.0.2.1'},body:'{}'}),{PLAN_RATE_LIMITER:{limit:async()=>({success:true})}});
+  assert.equal(response.status,400);assert.equal((await response.json()).error,'Invalid runner state.');
+  return Response.json({planId:'run'});
+ },'/slops/dino/api/plan');assert.equal(result.planId,'run');
+});
+test('edge browser challenges produce a clear recovery message',async()=>{
+ await assert.rejects(requestRunnerPlan(state,'test-key',undefined,async()=>new Response('<html>Challenge</html>',{status:403,headers:{'cf-mitigated':'challenge'}}),'/slops/dino/api/plan'),{message:'Browser verification expired. Reload this page to continue with Jev.'});
+});

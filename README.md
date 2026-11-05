@@ -2,8 +2,6 @@
 
 Play: https://anandvivek.in/slops/dino/
 
-Standalone game: https://dino-jev.vivekanand1101.workers.dev/
-
 Source: https://github.com/vivekanand1101/dino-jev (private).
 
 The original Chromium dinosaur runner, with Jev selecting timed movement plans.
@@ -49,4 +47,17 @@ Tests mock Jev and cover gameplay, credentials, direct API access, relay origin/
 
 The Chromium runner and sprites are pinned to Chromium 90.0.4430.212. BSD licensing is preserved in `public/vendor/LICENSE`. Source: https://github.com/chromium/chromium/tree/90.0.4430.212/components/neterror/resources
 
-The website serves the game directly at `/slops/dino/`, without an iframe. After `npm run build`, run `node scripts/export-website.mjs /path/to/website` to update its `public/slops/dino/` assets. The website browser sends Jev decisions to this Worker. CORS allows only `https://anandvivek.in` and `https://www.anandvivek.in`; all requests still require a personal key and share the per-IP request limit. Keys on the website are scoped to the anandvivek.in origin. Website and game deployments are independent.
+The website serves the game directly at `/slops/dino/`, without an iframe. After `npm run build`, run `node scripts/export-website.mjs /path/to/website` to update its `public/slops/dino/` assets. The website browser sends Jev decisions to the same-origin Worker route; all requests require a personal key and share the per-IP request limit. Keys on the website are scoped to the anandvivek.in origin. Website and game deployments are independent.
+
+## Protection before Worker execution
+
+Production API requests use `/slops/dino/api/plan` on the same site hostname. Two Free WAF custom rules are deployed in the anandvivek.in zone (recorded in `security/cloudflare-edge-rules.json`):
+
+1. Block malformed game API traffic before the Worker (wrong path/method, missing bearer header, unapproved Origin or content type).
+2. Require Cloudflare Managed Challenge clearance on the Dino page and its API. A visitor's browser gets the clearance cookie when opening the game; same-origin decision requests include it automatically. A failed/uncleared bot request is challenged at the edge and never invokes the Worker.
+
+Both apex and www are covered. Only this game's page and API paths are targeted. The pre-existing login rate-limit rule remains unchanged. Workers Free and the domain Free plan are retained, with no paid service or subscription. The Worker's own 120/minute per-IP limit remains as an additional layer. No scheme guarantees immunity to distributed abuse or human-cleared automation.
+
+The workers.dev endpoint and Preview URLs are disabled after the migration so they cannot bypass WAF. Re-deploy with `wrangler.jsonc`; do not re-enable these addresses. The source build still works locally using the loopback preview. Production uses the site URL, not a standalone Worker URL.
+
+The website owns the shared key dialog in `public/shared/jev-key-settings.js`, its stylesheet and `jev-credentials.js`. Both Dino and tic-tac-toe import those same files. The export script preserves these imports and versions the Dino controller URL to avoid stale browser caches. Standalone local preview retains its bundled key settings.

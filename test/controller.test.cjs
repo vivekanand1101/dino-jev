@@ -40,7 +40,7 @@ test('late Jev reply is ignored after human takeover',async()=>{
 });
 
 test('native website gameplay uses its configured Jev relay instead of a missing local API',async()=>{
- const endpoint='https://dino-jev.vivekanand1101.workers.dev/api/plan';
+ const endpoint='/slops/dino/api/plan';
  const s=setup(endpoint);await s.listeners.load();vm.runInContext('motion.set(runner.horizon.obstacles[0],{span:200,speed:360})',s.context);s.get('start').onclick();
  assert.equal(s.requests[0].relay,endpoint);s.get('stop').onclick();
 });

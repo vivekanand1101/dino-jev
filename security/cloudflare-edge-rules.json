@@ -1,0 +1,18 @@
+{
+  "description": "Free game-only edge rules. Preserve all existing rules and billing plans.",
+  "rules": [
+    {
+      "name": "Dino API - reject malformed traffic",
+      "action": "block",
+      "expression": "(http.host in {\"anandvivek.in\" \"www.anandvivek.in\"} and starts_with(http.request.uri.path, \"/slops/dino/api/\") and not (http.request.uri.path eq \"/slops/dino/api/plan\" and http.request.method eq \"POST\" and any(http.request.headers[\"origin\"][*] in {\"https://anandvivek.in\" \"https://www.anandvivek.in\"}) and any(http.request.headers[\"content-type\"][*] eq \"application/json\") and any(starts_with(http.request.headers[\"authorization\"][*], \"Bearer \"))))",
+      "id": "f2000f7738c744c796b1ced8ff1c7fb0"
+    },
+    {
+      "name": "Dino - browser verification before Worker",
+      "action": "managed_challenge",
+      "expression": "(http.host in {\"anandvivek.in\" \"www.anandvivek.in\"} and (http.request.uri.path in {\"/slops/dino\" \"/slops/dino/\"} or starts_with(http.request.uri.path, \"/slops/dino/api/\")))",
+      "id": "58eb43afe76f4f1bafe1f865af57c0bb"
+    }
+  ],
+  "zone_id": "fa99c5c83aa1ef358ce0c3e57a233a4c"
+}
